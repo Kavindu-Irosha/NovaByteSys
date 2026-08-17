@@ -1,19 +1,18 @@
-import { adminAuth } from "@/app/lib/firebase-admin";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function POST(request) {
     try {
-        const { idToken } = await request.json();
+        const { idToken, email } = await request.json();
         if (!idToken) {
-            return NextResponse.json({ error: "Missing idToken" }, { status: 400 });
+            return NextResponse.json({ error: "Missing token" }, { status: 400 });
         }
-        const expiresIn = 60 * 60 * 24 * 5 * 1000;
-        const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
+        const sessionData = JSON.stringify({ email: email || "", token: idToken });
         const cookieStore = await cookies();
-        cookieStore.set("session", sessionCookie, {
-            maxAge: expiresIn,
+
+        cookieStore.set("session", sessionData, {
+            maxAge: 60 * 60 * 24 * 7, // 7 days
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
@@ -25,4 +24,4 @@ export async function POST(request) {
         console.error("Login API error:", error);
         return NextResponse.json({ error: error?.message || String(error) }, { status: 500 });
     }
-}
+}                                                                                                                                             

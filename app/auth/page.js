@@ -19,11 +19,12 @@ export default function Authentication() {
             setLoading(true);
             const result = await signInWithPopup(auth, googleAuthprovider);
             const idToken = await result.user.getIdToken();
+            const email = result.user.email;
 
             const res = await fetch("/api/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ idToken })
+                body: JSON.stringify({ idToken, email })
             });
 
 

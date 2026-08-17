@@ -22,12 +22,13 @@ export default async function DashboardPage() {
   let initialProjects = [];
   let initialSubscriptions = [];
 
-  try {
-    if (session) {
-      decodedToken = await adminAuth.verifySessionCookie(session, true);
+  if (session) {
+    try {
+      const parsed = JSON.parse(session);
+      decodedToken.email = parsed.email || "";
+    } catch (e) {
+      decodedToken.email = session;
     }
-  } catch (error) {
-    console.error("Session error:", error);
   }
 
   try {
