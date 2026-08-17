@@ -31,12 +31,13 @@ export default function Authentication() {
                 router.push("/")
                 router.refresh();
             } else {
-                throw new Error("Failed to authenticate the session");
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || "Failed to authenticate the session");
             }
 
         } catch (error) {
-            console.error("Login failed", error.message)
-            alert("Login failed", error.message)
+            console.error("Login failed", error)
+            alert("Login failed: " + (error.message || error))
         } finally {
             setLoading(false);
         }

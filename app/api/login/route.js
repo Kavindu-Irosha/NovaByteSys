@@ -14,12 +14,14 @@ export async function POST(request) {
             maxAge: expiresIn,
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
             path: "/"
         });
 
         return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        console.error("Login API error:", error);
+        return NextResponse.json({ error: error.message || "Unauthorized" }, { status: 401 });
     }
     
 }
