@@ -13,7 +13,9 @@ export default async function ReportsPage() {
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    redirect("/auth");
+    return (
+      <script dangerouslySetInnerHTML={{ __html: 'window.location.href = "/auth";' }} />
+    );
   }
 
   let decodedToken = { email: "" };
