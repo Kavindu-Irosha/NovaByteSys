@@ -31,8 +31,19 @@ export default function Authentication() {
                 router.push("/")
                 router.refresh();
             } else {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.error || "Failed to authenticate the session");
+                let errorMsg = `Server error (${res.status})`;
+                try {
+                    const text = await res.text();
+                    try {
+                        const data = JSON.parse(text);
+                        errorMsg = data.error || errorMsg;
+                    } catch (e) {
+                        errorMsg = text || errorMsg;
+                    }
+                } catch (e) {
+                    // Ignore text parse failure
+                }
+                throw new Error(errorMsg);
             }
 
         } catch (error) {

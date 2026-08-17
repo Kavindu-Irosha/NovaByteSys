@@ -3,11 +3,13 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function POST(request) {
-
     try {
         const { idToken } = await request.json();
+        if (!idToken) {
+            return NextResponse.json({ error: "Missing idToken" }, { status: 400 });
+        }
         const expiresIn = 60 * 60 * 24 * 5 * 1000;
-        const sessionCookie = await adminAuth.createSessionCookie(idToken, {expiresIn});
+        const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
         const cookieStore = await cookies();
         cookieStore.set("session", sessionCookie, {
@@ -21,7 +23,6 @@ export async function POST(request) {
         return NextResponse.json({ success: true }, { status: 200 });
     } catch (error) {
         console.error("Login API error:", error);
-        return NextResponse.json({ error: error.message || "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: error?.message || String(error) }, { status: 500 });
     }
-    
 }
