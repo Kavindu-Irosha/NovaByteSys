@@ -3,21 +3,42 @@ import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
-// 1. Structure the credentials properly
-const serviceAccount = {
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-  // The replace function fixes newline characters in the private key
-  privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-};
+function getFirebaseAdminApp() {
+  if (getApps().length > 0) {
+    return getApps()[0];
+  }
 
-// 2. Initialize the app only if it hasn't been initialized already
-const app = getApps().length === 0 
-  ? initializeApp({ credential: cert(serviceAccount) }) 
-  : getApps()[0];
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  if (privateKey) {
+    privateKey = privateKey.trim();
+    if ((privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+        (privateKey.startsWith("'") && privateKey.endsWith("'"))) {
+      privateKey = privateKey.slice(1, -1);
+    }
+    privateKey = privateKey.replace(/\\n/g, "\n");
+  }
 
-// 3. Export the auth instance and firestore
-const adminAuth = getAuth(app);
-const adminDb = getFirestore(app);
+  const serviceAccount = {
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey: privateKey,
+  };
 
-export { adminAuth, adminDb };
+  return initializeApp({ credential: cert(serviceAccount) });
+}
+
+export const adminAuth = new Proxy({}, {
+  get: (target, prop) => {
+    const auth = getAuth(getFirebaseAdminApp());
+    const val = auth[prop];
+    return typeof val === "function" ? val.bind(auth) : val;
+  }
+});
+
+export const adminDb = new Proxy({}, {
+  get: (target, prop) => {
+    const db = getFirestore(getFirebaseAdminApp());
+    const val = db[prop];
+    return typeof val === "function" ? val.bind(db) : val;
+  }
+});
