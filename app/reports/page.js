@@ -1,8 +1,9 @@
-import { adminDb, adminAuth } from "../lib/firebase-admin";
+import { adminDb } from "../lib/firebase-admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
 import ReportsClient from "../components/ReportsClient";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
@@ -13,15 +14,10 @@ export default async function ReportsPage() {
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    return (
-      <script dangerouslySetInnerHTML={{ __html: 'window.location.href = "/auth";' }} />
-    );
+    redirect("/auth");
   }
 
   let decodedToken = { email: "" };
-  let initialProjects = [];
-  let initialSubscriptions = [];
-
   if (session) {
     try {
       const parsed = JSON.parse(session);
@@ -31,21 +27,22 @@ export default async function ReportsPage() {
     }
   }
 
-  try {
-    if (session) {
-      const projectsSnapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-      initialProjects = projectsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          completedAt: data.completedAt ? data.completedAt.toDate().toISOString() : new Date().toISOString()
-        };
-      });
+  let initialProjects = [];
+  let initialSubscriptions = [];
 
-      const subsSnapshot = await adminDb.collection("subscriptions").get();
-      initialSubscriptions = subsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    }
+  try {
+    const projectsSnapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
+    initialProjects = projectsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        completedAt: data.completedAt ? data.completedAt.toDate().toISOString() : new Date().toISOString()
+      };
+    });
+
+    const subsSnapshot = await adminDb.collection("subscriptions").get();
+    initialSubscriptions = subsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   } catch (error) {
     console.error("Firestore data fetch error:", error);
   }
@@ -80,7 +77,7 @@ export default async function ReportsPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 bg-background min-h-[calc(100vh-4rem)]">
+      <main className="max-w-6xl mx-auto px-6 py-10">
         <ReportsClient initialProjects={initialProjects} initialSubscriptions={initialSubscriptions} />
       </main>
     </div>

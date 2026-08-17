@@ -1,8 +1,9 @@
-import { adminDb, adminAuth } from "../lib/firebase-admin";
+import { adminDb } from "../lib/firebase-admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
 import ProjectsClient from "../components/ProjectsClient";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
@@ -13,14 +14,10 @@ export default async function ProjectsPage() {
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    return (
-      <script dangerouslySetInnerHTML={{ __html: 'window.location.href = "/auth";' }} />
-    );
+    redirect("/auth");
   }
 
   let decodedToken = { email: "" };
-  let initialProjects = [];
-
   if (session) {
     try {
       const parsed = JSON.parse(session);
@@ -30,18 +27,17 @@ export default async function ProjectsPage() {
     }
   }
 
+  let initialProjects = [];
   try {
-    if (session) {
-      const snapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-      initialProjects = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          completedAt: data.completedAt ? data.completedAt.toDate().toLocaleDateString() : "N/A"
-        };
-      });
-    }
+    const snapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
+    initialProjects = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        completedAt: data.completedAt ? data.completedAt.toDate().toLocaleDateString() : "N/A"
+      };
+    });
   } catch (error) {
     console.error("Firestore data fetch error:", error);
   }
@@ -76,7 +72,7 @@ export default async function ProjectsPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10 bg-background min-h-[calc(100vh-4rem)]">
+      <main className="max-w-6xl mx-auto px-6 py-10">
         <ProjectsClient initialProjects={initialProjects} />
       </main>
     </div>
