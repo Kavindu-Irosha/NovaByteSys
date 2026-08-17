@@ -1,6 +1,5 @@
 import { adminDb } from "../lib/firebase-admin";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +13,17 @@ export default async function ProjectsPage() {
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    redirect("/auth");
+    return (
+      <html lang="en">
+        <head>
+          <meta httpEquiv="refresh" content="0;url=/auth" />
+        </head>
+        <body style={{ backgroundColor: "#09090b", color: "#fff", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+          <p>Redirecting to login...</p>
+          <script dangerouslySetInnerHTML={{ __html: 'window.location.replace("/auth");' }} />
+        </body>
+      </html>
+    );
   }
 
   let decodedToken = { email: "" };
