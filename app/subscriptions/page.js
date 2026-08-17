@@ -8,6 +8,16 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function safeToDateString(val) {
+  if (!val) return "N/A";
+  if (typeof val.toDate === "function") {
+    try { return val.toDate().toLocaleDateString(); } catch (e) {}
+  }
+  if (typeof val === "string") return val;
+  if (val instanceof Date) return val.toLocaleDateString();
+  return "N/A";
+}
+
 export default async function SubscriptionsPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
@@ -38,15 +48,23 @@ export default async function SubscriptionsPage() {
 
   let initialSubscriptions = [];
   try {
-    const snapshot = await adminDb.collection("subscriptions").orderBy("createdAt", "desc").get();
-    initialSubscriptions = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "N/A"
-      };
-    });
+    let snapshot;
+    try {
+      snapshot = await adminDb.collection("subscriptions").orderBy("createdAt", "desc").get();
+    } catch (e) {
+      snapshot = await adminDb.collection("subscriptions").get();
+    }
+
+    if (snapshot && snapshot.docs) {
+      initialSubscriptions = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: safeToDateString(data.createdAt)
+        };
+      });
+    }
   } catch (error) {
     console.error("Firestore data fetch error:", error);
   }

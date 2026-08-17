@@ -8,6 +8,16 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function safeToIsoString(val) {
+  if (!val) return new Date().toISOString();
+  if (typeof val.toDate === "function") {
+    try { return val.toDate().toISOString(); } catch (e) {}
+  }
+  if (typeof val === "string") return val;
+  if (val instanceof Date) return val.toISOString();
+  return new Date().toISOString();
+}
+
 export default async function ReportsPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
@@ -40,18 +50,28 @@ export default async function ReportsPage() {
   let initialSubscriptions = [];
 
   try {
-    const projectsSnapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-    initialProjects = projectsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        completedAt: data.completedAt ? data.completedAt.toDate().toISOString() : new Date().toISOString()
-      };
-    });
+    let projectsSnapshot;
+    try {
+      projectsSnapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
+    } catch (e) {
+      projectsSnapshot = await adminDb.collection("projects").get();
+    }
+
+    if (projectsSnapshot && projectsSnapshot.docs) {
+      initialProjects = projectsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          completedAt: safeToIsoString(data.completedAt)
+        };
+      });
+    }
 
     const subsSnapshot = await adminDb.collection("subscriptions").get();
-    initialSubscriptions = subsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (subsSnapshot && subsSnapshot.docs) {
+      initialSubscriptions = subsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
   } catch (error) {
     console.error("Firestore data fetch error:", error);
   }

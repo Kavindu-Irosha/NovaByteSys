@@ -8,6 +8,16 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+function safeToDateString(val) {
+  if (!val) return "N/A";
+  if (typeof val.toDate === "function") {
+    try { return val.toDate().toLocaleDateString(); } catch (e) {}
+  }
+  if (typeof val === "string") return val;
+  if (val instanceof Date) return val.toLocaleDateString();
+  return "N/A";
+}
+
 export default async function ProjectsPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
@@ -18,7 +28,7 @@ export default async function ProjectsPage() {
         <head>
           <meta httpEquiv="refresh" content="0;url=/auth" />
         </head>
-        <body style={{ backgroundColor: "#09090b", color: "#fff", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+        <body style={{ backgroundColor: "#09090b", color: "#fff", fontFamily: "sans-serif", display: "flex", items: "center", justifyContent: "center", height: "100vh" }}>
           <p>Redirecting to login...</p>
           <script dangerouslySetInnerHTML={{ __html: 'window.location.replace("/auth");' }} />
         </body>
@@ -38,15 +48,23 @@ export default async function ProjectsPage() {
 
   let initialProjects = [];
   try {
-    const snapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-    initialProjects = snapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        completedAt: data.completedAt ? data.completedAt.toDate().toLocaleDateString() : "N/A"
-      };
-    });
+    let snapshot;
+    try {
+      snapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
+    } catch (e) {
+      snapshot = await adminDb.collection("projects").get();
+    }
+
+    if (snapshot && snapshot.docs) {
+      initialProjects = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          completedAt: safeToDateString(data.completedAt)
+        };
+      });
+    }
   } catch (error) {
     console.error("Firestore data fetch error:", error);
   }
