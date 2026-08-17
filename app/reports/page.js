@@ -16,26 +16,36 @@ export default async function ReportsPage() {
     redirect("/auth");
   }
 
-  let decodedToken;
+  let decodedToken = { email: "" };
+  let initialProjects = [];
+  let initialSubscriptions = [];
+
   try {
-    decodedToken = await adminAuth.verifySessionCookie(session, true);
+    if (session) {
+      decodedToken = await adminAuth.verifySessionCookie(session, true);
+    }
   } catch (error) {
-    redirect("/auth");
+    console.error("Session error:", error);
   }
 
-  // Server-Side Data Fetching
-  const projectsSnapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-  const initialProjects = projectsSnapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      completedAt: data.completedAt ? data.completedAt.toDate().toISOString() : new Date().toISOString()
-    };
-  });
+  try {
+    if (session) {
+      const projectsSnapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
+      initialProjects = projectsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          completedAt: data.completedAt ? data.completedAt.toDate().toISOString() : new Date().toISOString()
+        };
+      });
 
-  const subsSnapshot = await adminDb.collection("subscriptions").get();
-  const initialSubscriptions = subsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const subsSnapshot = await adminDb.collection("subscriptions").get();
+      initialSubscriptions = subsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+  } catch (error) {
+    console.error("Firestore data fetch error:", error);
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

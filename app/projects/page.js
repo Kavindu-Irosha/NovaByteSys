@@ -16,24 +16,32 @@ export default async function ProjectsPage() {
     redirect("/auth");
   }
 
-  let decodedToken;
+  let decodedToken = { email: "" };
+  let initialProjects = [];
+
   try {
-    decodedToken = await adminAuth.verifySessionCookie(session, true);
+    if (session) {
+      decodedToken = await adminAuth.verifySessionCookie(session, true);
+    }
   } catch (error) {
-    redirect("/auth");
+    console.error("Session error:", error);
   }
 
-  // Server-Side Data Fetching (Fast!)
-  const snapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-  const initialProjects = snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      // Convert Firestore Timestamp to formatted string on server
-      completedAt: data.completedAt ? data.completedAt.toDate().toLocaleDateString() : "N/A"
-    };
-  });
+  try {
+    if (session) {
+      const snapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
+      initialProjects = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          completedAt: data.completedAt ? data.completedAt.toDate().toLocaleDateString() : "N/A"
+        };
+      });
+    }
+  } catch (error) {
+    console.error("Firestore data fetch error:", error);
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

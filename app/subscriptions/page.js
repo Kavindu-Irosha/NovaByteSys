@@ -16,23 +16,32 @@ export default async function SubscriptionsPage() {
     redirect("/auth");
   }
 
-  let decodedToken;
+  let decodedToken = { email: "" };
+  let initialSubscriptions = [];
+
   try {
-    decodedToken = await adminAuth.verifySessionCookie(session, true);
+    if (session) {
+      decodedToken = await adminAuth.verifySessionCookie(session, true);
+    }
   } catch (error) {
-    redirect("/auth");
+    console.error("Session error:", error);
   }
 
-  // Server-Side Data Fetching
-  const snapshot = await adminDb.collection("subscriptions").orderBy("createdAt", "desc").get();
-  const initialSubscriptions = snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id,
-      ...data,
-      createdAt: data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "N/A"
-    };
-  });
+  try {
+    if (session) {
+      const snapshot = await adminDb.collection("subscriptions").orderBy("createdAt", "desc").get();
+      initialSubscriptions = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "N/A"
+        };
+      });
+    }
+  } catch (error) {
+    console.error("Firestore data fetch error:", error);
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
