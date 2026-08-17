@@ -1,6 +1,8 @@
 import { adminDb, adminAuth } from "../lib/firebase-admin";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 import ProjectsClient from "../components/ProjectsClient";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
