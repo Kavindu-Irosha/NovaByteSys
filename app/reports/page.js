@@ -1,12 +1,12 @@
-import { redirect } from "next/navigation";
-import { adminAuth, adminDb } from "./lib/firebase-admin";
+import { adminDb, adminAuth } from "../lib/firebase-admin";
 import { cookies } from "next/headers";
-import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { redirect } from "next/navigation";
+import ReportsClient from "../components/ReportsClient";
 import Link from "next/link";
-import DashboardClient from "./components/DashboardClient";
+import { LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-export default async function DashboardPage() {
+export default async function ReportsPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
 
@@ -45,10 +45,10 @@ export default async function DashboardPage() {
               <h1 className="text-xl font-bold tracking-tight mr-4">NovaByte Dashboard</h1>
             </div>
             <nav className="hidden md:flex items-center gap-4 text-sm font-medium">
-              <Link href="/" className="text-foreground transition-colors hover:text-foreground/80">Overview</Link>
+              <Link href="/" className="text-muted-foreground transition-colors hover:text-foreground">Overview</Link>
               <Link href="/projects" className="text-muted-foreground transition-colors hover:text-foreground">Projects Ledger</Link>
               <Link href="/subscriptions" className="text-muted-foreground transition-colors hover:text-foreground">Subscriptions</Link>
-              <Link href="/reports" className="text-muted-foreground transition-colors hover:text-foreground">Audit Reports</Link>
+              <Link href="/reports" className="text-foreground transition-colors hover:text-foreground/80">Audit Reports</Link>
             </nav>
           </div>
           <div className="flex items-center gap-4">
@@ -65,8 +65,8 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <DashboardClient initialProjects={initialProjects} initialSubscriptions={initialSubscriptions} />
+      <main className="max-w-6xl mx-auto px-6 py-10 bg-background min-h-[calc(100vh-4rem)]">
+        <ReportsClient initialProjects={initialProjects} initialSubscriptions={initialSubscriptions} />
       </main>
     </div>
   );
