@@ -11,10 +11,38 @@ import { Plus, Loader2 } from "lucide-react";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 
-export default function ProjectsClient({ initialProjects }) {
+import { useEffect } from "react";
+import { onSnapshot, query, orderBy } from "firebase/firestore";
+
+export default function ProjectsClient({ initialProjects = [] }) {
   const router = useRouter();
+  const [projects, setProjects] = useState(initialProjects);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    let unsub = () => {};
+    try {
+      unsub = onSnapshot(collection(db, "projects"), (snapshot) => {
+        const docs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          let cAt = "N/A";
+          if (data.completedAt) {
+            if (typeof data.completedAt.toDate === "function") {
+              try { cAt = data.completedAt.toDate().toLocaleDateString(); } catch(e){}
+            } else if (typeof data.completedAt === "string") {
+              cAt = data.completedAt;
+            }
+          }
+          return { id: doc.id, ...data, completedAt: cAt };
+        });
+        setProjects(docs);
+      }, (err) => console.error("Projects snapshot error:", err));
+    } catch (e) {
+      console.error("Projects sync error:", e);
+    }
+    return () => unsub();
+  }, []);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -117,7 +145,7 @@ export default function ProjectsClient({ initialProjects }) {
   ];
 
   const table = useReactTable({
-    data: initialProjects,
+    data: projects,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -196,7 +224,7 @@ export default function ProjectsClient({ initialProjects }) {
           <CardTitle>Completed Projects</CardTitle>
         </CardHeader>
         <CardContent>
-          {initialProjects.length === 0 ? (
+          {projects.length === 0 ? (
             <p className="text-center text-muted-foreground py-10">No projects recorded yet. Add your first project!</p>
           ) : (
             <div className="rounded-md border border-muted overflow-x-auto">

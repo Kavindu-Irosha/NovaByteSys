@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { groupProjectsByTimeFrame, calculateMemberSplit } from "../lib/finance";
 import { FileText, Download, UploadCloud, Loader2 } from "lucide-react";
@@ -11,20 +13,55 @@ import autoTable from "jspdf-autotable";
 import { storage } from "../lib/firebase";
 import { ref, uploadBytesResumable, getDownloadURL, listAll } from "firebase/storage";
 
-export default function ReportsClient({ initialProjects, initialSubscriptions }) {
+export default function ReportsClient({ initialProjects = [], initialSubscriptions = [] }) {
+  const [projects, setProjects] = useState(initialProjects);
+  const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
   const [timeFrame, setTimeFrame] = useState("monthly");
   const [uploading, setUploading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+
+  useEffect(() => {
+    let unsubP = () => {};
+    let unsubS = () => {};
+
+    try {
+      unsubP = onSnapshot(collection(db, "projects"), (snapshot) => {
+        const docs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          let cAt = new Date().toISOString();
+          if (data.completedAt) {
+            if (typeof data.completedAt.toDate === "function") {
+              try { cAt = data.completedAt.toDate().toISOString(); } catch(e){}
+            } else if (typeof data.completedAt === "string") {
+              cAt = data.completedAt;
+            }
+          }
+          return { id: doc.id, ...data, completedAt: cAt };
+        });
+        setProjects(docs);
+      }, (err) => console.error("Reports projects snapshot error:", err));
+
+      unsubS = onSnapshot(collection(db, "subscriptions"), (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setSubscriptions(docs);
+      }, (err) => console.error("Reports subs snapshot error:", err));
+    } catch(e) {
+      console.error("Reports sync error:", e);
+    }
+
+    return () => {
+      unsubP();
+      unsubS();
+    };
+  }, []);
   
-  // Calculate total monthly/yearly expenses to deduct per report period
-  // For precise accounting this would map exact dates, but we use a simplified approach here
   const totalExpenses = useMemo(() => {
-    return initialSubscriptions.reduce((acc, sub) => acc + (sub.cost || 0), 0);
-  }, [initialSubscriptions]);
+    return subscriptions.reduce((acc, sub) => acc + (sub.cost || 0), 0);
+  }, [subscriptions]);
 
   const reportData = useMemo(() => {
-    return groupProjectsByTimeFrame(initialProjects, timeFrame);
-  }, [initialProjects, timeFrame]);
+    return groupProjectsByTimeFrame(projects, timeFrame);
+  }, [projects, timeFrame]);
 
   useEffect(() => {
     fetchUploadedPDFs();
@@ -74,7 +111,7 @@ export default function ReportsClient({ initialProjects, initialSubscriptions })
       startY: 42,
       theme: 'grid',
       styles: { fontSize: 10 },
-      headStyles: { fillColor: [16, 185, 129] } // emerald-500 matching Green Mist theme
+      headStyles: { fillColor: [16, 185, 129] }
     });
 
     doc.save(`novabyte_audit_${timeFrame}.pdf`);

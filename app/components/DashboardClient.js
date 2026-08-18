@@ -1,11 +1,51 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { db } from "../lib/firebase";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { calculateMemberSplit, groupProjectsByTimeFrame, groupProjectsByService, MEMBER_COUNT } from "../lib/finance";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { DollarSign, Briefcase, TrendingUp, CreditCard } from "lucide-react";
 
-export default function DashboardClient({ initialProjects, initialSubscriptions }) {
+export default function DashboardClient({ initialProjects = [], initialSubscriptions = [] }) {
+  const [projects, setProjects] = useState(initialProjects);
+  const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
+
+  useEffect(() => {
+    let unsubP = () => {};
+    let unsubS = () => {};
+
+    try {
+      unsubP = onSnapshot(collection(db, "projects"), (snapshot) => {
+        const docs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          let cAt = new Date().toISOString();
+          if (data.completedAt) {
+            if (typeof data.completedAt.toDate === "function") {
+              try { cAt = data.completedAt.toDate().toISOString(); } catch(e){}
+            } else if (typeof data.completedAt === "string") {
+              cAt = data.completedAt;
+            }
+          }
+          return { id: doc.id, ...data, completedAt: cAt };
+        });
+        setProjects(docs);
+      }, (err) => console.error("Firestore projects error:", err));
+
+      unsubS = onSnapshot(collection(db, "subscriptions"), (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setSubscriptions(docs);
+      }, (err) => console.error("Firestore subs error:", err));
+    } catch(e) {
+      console.error("Dashboard real-time sync setup error:", e);
+    }
+
+    return () => {
+      unsubP();
+      unsubS();
+    };
+  }, []);
   
   let totalRevenue = 0;
   let monthlyRevenue = 0;
@@ -13,7 +53,7 @@ export default function DashboardClient({ initialProjects, initialSubscriptions 
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
-  initialProjects.forEach(p => {
+  projects.forEach(p => {
     totalRevenue += (p.price || 0);
     const date = new Date(p.completedAt);
     if (date.getMonth() === currentMonth && date.getFullYear() === currentYear) {
@@ -21,17 +61,14 @@ export default function DashboardClient({ initialProjects, initialSubscriptions 
     }
   });
 
-  // Calculate Subscriptions Expense (Total per month * 12 for yearly, or simplified to just standard sum)
   let totalExpenses = 0;
-  initialSubscriptions.forEach(sub => {
-    // For simplicity, we deduct the literal cost they entered (either monthly or yearly).
-    // In a full accounting app, you'd amortize yearly over months.
+  subscriptions.forEach(sub => {
     totalExpenses += (sub.cost || 0);
   });
 
   const memberSplit = calculateMemberSplit(totalRevenue, totalExpenses);
-  const chartData = groupProjectsByTimeFrame(initialProjects, "monthly");
-  const serviceData = groupProjectsByService(initialProjects);
+  const chartData = groupProjectsByTimeFrame(projects, "monthly");
+  const serviceData = groupProjectsByService(projects);
 
   return (
     <div className="space-y-6">
@@ -70,7 +107,7 @@ export default function DashboardClient({ initialProjects, initialSubscriptions 
             <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{initialProjects.length}</div>
+            <div className="text-2xl font-bold">{projects.length}</div>
           </CardContent>
         </Card>
       </div>

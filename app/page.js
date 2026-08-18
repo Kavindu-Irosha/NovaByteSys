@@ -1,79 +1,26 @@
-import { adminDb } from "./lib/firebase-admin";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-
-export const dynamic = "force-dynamic";
-
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 import DashboardClient from "./components/DashboardClient";
 
-function safeToIsoString(val) {
-  if (!val) return new Date().toISOString();
-  if (typeof val.toDate === "function") {
-    try { return val.toDate().toISOString(); } catch (e) {}
-  }
-  if (typeof val === "string") return val;
-  if (val instanceof Date) return val.toISOString();
-  return new Date().toISOString();
-}
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    return (
-      <html lang="en">
-        <head>
-          <meta httpEquiv="refresh" content="0;url=/auth" />
-        </head>
-        <body style={{ backgroundColor: "#09090b", color: "#fff", fontFamily: "sans-serif", display: "flex", alignItems: "center", justifyContent: "center", height: "100vh" }}>
-          <p>Redirecting to login...</p>
-          <script dangerouslySetInnerHTML={{ __html: 'window.location.replace("/auth");' }} />
-        </body>
-      </html>
-    );
+    redirect("/auth");
   }
 
-  let decodedToken = { email: "" };
-  if (session) {
-    try {
-      const parsed = JSON.parse(session);
-      decodedToken.email = parsed.email || "";
-    } catch (e) {
-      decodedToken.email = session;
-    }
-  }
-
-  let initialProjects = [];
-  let initialSubscriptions = [];
-
+  let userEmail = "";
   try {
-    let projectsSnapshot;
-    try {
-      projectsSnapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-    } catch (e) {
-      projectsSnapshot = await adminDb.collection("projects").get();
-    }
-
-    if (projectsSnapshot && projectsSnapshot.docs) {
-      initialProjects = projectsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          completedAt: safeToIsoString(data.completedAt)
-        };
-      });
-    }
-
-    const subsSnapshot = await adminDb.collection("subscriptions").get();
-    if (subsSnapshot && subsSnapshot.docs) {
-      initialSubscriptions = subsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    }
-  } catch (error) {
-    console.error("Firestore data fetch error:", error);
+    const parsed = JSON.parse(session);
+    userEmail = parsed.email || "";
+  } catch (e) {
+    userEmail = session || "";
   }
 
   return (
@@ -94,7 +41,7 @@ export default async function DashboardPage() {
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-muted-foreground hidden md:block">
-              {decodedToken.email}
+              {userEmail}
             </div>
             <form action="/api/logout" method="POST">
               <Button variant="destructive" size="sm" type="submit" className="font-medium">
@@ -107,7 +54,7 @@ export default async function DashboardPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-10">
-        <DashboardClient initialProjects={initialProjects} initialSubscriptions={initialSubscriptions} />
+        <DashboardClient initialProjects={[]} initialSubscriptions={[]} />
       </main>
     </div>
   );

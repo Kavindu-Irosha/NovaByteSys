@@ -1,72 +1,26 @@
-import { adminDb } from "../lib/firebase-admin";
+import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-
-export const dynamic = "force-dynamic";
-
 import ProjectsClient from "../components/ProjectsClient";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-function safeToDateString(val) {
-  if (!val) return "N/A";
-  if (typeof val.toDate === "function") {
-    try { return val.toDate().toLocaleDateString(); } catch (e) {}
-  }
-  if (typeof val === "string") return val;
-  if (val instanceof Date) return val.toLocaleDateString();
-  return "N/A";
-}
+export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    return (
-      <html lang="en">
-        <head>
-          <meta httpEquiv="refresh" content="0;url=/auth" />
-        </head>
-        <body style={{ backgroundColor: "#09090b", color: "#fff", fontFamily: "sans-serif", display: "flex", items: "center", justifyContent: "center", height: "100vh" }}>
-          <p>Redirecting to login...</p>
-          <script dangerouslySetInnerHTML={{ __html: 'window.location.replace("/auth");' }} />
-        </body>
-      </html>
-    );
+    redirect("/auth");
   }
 
-  let decodedToken = { email: "" };
-  if (session) {
-    try {
-      const parsed = JSON.parse(session);
-      decodedToken.email = parsed.email || "";
-    } catch (e) {
-      decodedToken.email = session;
-    }
-  }
-
-  let initialProjects = [];
+  let userEmail = "";
   try {
-    let snapshot;
-    try {
-      snapshot = await adminDb.collection("projects").orderBy("completedAt", "desc").get();
-    } catch (e) {
-      snapshot = await adminDb.collection("projects").get();
-    }
-
-    if (snapshot && snapshot.docs) {
-      initialProjects = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          ...data,
-          completedAt: safeToDateString(data.completedAt)
-        };
-      });
-    }
-  } catch (error) {
-    console.error("Firestore data fetch error:", error);
+    const parsed = JSON.parse(session);
+    userEmail = parsed.email || "";
+  } catch (e) {
+    userEmail = session || "";
   }
 
   return (
@@ -87,7 +41,7 @@ export default async function ProjectsPage() {
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-muted-foreground hidden md:block">
-              {decodedToken.email}
+              {userEmail}
             </div>
             <form action="/api/logout" method="POST">
               <Button variant="destructive" size="sm" type="submit" className="font-medium">
@@ -100,7 +54,7 @@ export default async function ProjectsPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-10">
-        <ProjectsClient initialProjects={initialProjects} />
+        <ProjectsClient initialProjects={[]} />
       </main>
     </div>
   );

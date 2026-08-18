@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { collection, addDoc, serverTimestamp, deleteDoc, doc } from "firebase/firestore";
+import { useState, useEffect } from "react";
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,35 @@ import { Plus, Loader2, Trash2, Cpu } from "lucide-react";
 import { flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 
-export default function SubscriptionsClient({ initialSubscriptions }) {
+export default function SubscriptionsClient({ initialSubscriptions = [] }) {
   const router = useRouter();
+  const [subscriptions, setSubscriptions] = useState(initialSubscriptions);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    let unsub = () => {};
+    try {
+      unsub = onSnapshot(collection(db, "subscriptions"), (snapshot) => {
+        const docs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          let cAt = "N/A";
+          if (data.createdAt) {
+            if (typeof data.createdAt.toDate === "function") {
+              try { cAt = data.createdAt.toDate().toLocaleDateString(); } catch(e){}
+            } else if (typeof data.createdAt === "string") {
+              cAt = data.createdAt;
+            }
+          }
+          return { id: doc.id, ...data, createdAt: cAt };
+        });
+        setSubscriptions(docs);
+      }, (err) => console.error("Subscriptions snapshot error:", err));
+    } catch(e) {
+      console.error("Subscriptions sync error:", e);
+    }
+    return () => unsub();
+  }, []);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -41,7 +66,6 @@ export default function SubscriptionsClient({ initialSubscriptions }) {
         cost: 0,
         cycle: "monthly",
       });
-      router.refresh();
     } catch (error) {
       console.error("Error adding subscription: ", error);
     } finally {
@@ -53,7 +77,6 @@ export default function SubscriptionsClient({ initialSubscriptions }) {
     if (confirm("Are you sure you want to remove this subscription?")) {
       try {
         await deleteDoc(doc(db, "subscriptions", id));
-        router.refresh();
       } catch (error) {
         console.error("Error deleting document: ", error);
       }
@@ -68,7 +91,7 @@ export default function SubscriptionsClient({ initialSubscriptions }) {
     { 
       header: "Cost", 
       accessorKey: "cost",
-      cell: info => `Rs. ${info.getValue().toLocaleString()}`
+      cell: info => `Rs. ${(info.getValue() || 0).toLocaleString()}`
     },
     { header: "Added On", accessorKey: "createdAt" },
     {
@@ -82,7 +105,7 @@ export default function SubscriptionsClient({ initialSubscriptions }) {
   ];
 
   const table = useReactTable({
-    data: initialSubscriptions,
+    data: subscriptions,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -143,7 +166,7 @@ export default function SubscriptionsClient({ initialSubscriptions }) {
           <CardTitle>Active Subscriptions</CardTitle>
         </CardHeader>
         <CardContent>
-          {initialSubscriptions.length === 0 ? (
+          {subscriptions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                <Cpu className="h-10 w-10 mb-2 opacity-20" />
                <p>No active subscriptions tracked.</p>
