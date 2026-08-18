@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import ReportsClient from "../components/ReportsClient";
+import ClientRedirect from "../components/ClientRedirect";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export default async function ReportsPage() {
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    redirect("/auth");
+    return <ClientRedirect to="/auth" />;
   }
 
   let userEmail = "";

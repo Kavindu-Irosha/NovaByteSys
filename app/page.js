@@ -1,9 +1,9 @@
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 import DashboardClient from "./components/DashboardClient";
+import ClientRedirect from "./components/ClientRedirect";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    redirect("/auth");
+    return <ClientRedirect to="/auth" />;
   }
 
   let userEmail = "";

@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import ProjectsClient from "../components/ProjectsClient";
+import ClientRedirect from "../components/ClientRedirect";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ export default async function ProjectsPage() {
   const session = cookieStore.get("session")?.value;
 
   if (!session) {
-    redirect("/auth");
+    return <ClientRedirect to="/auth" />;
   }
 
   let userEmail = "";
